@@ -4,7 +4,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	// "fmt"
 	shared "github.com/luke-segars/loldata/src/shared"
 	"github.com/luke-segars/loldata/src/shared/structs"
 	"github.com/montanaflynn/stats"
@@ -25,15 +25,43 @@ const (
 	DAY_RANGE = 3
 )
 
+type OutputRecord struct {
+	Metrics  []Metric
+	Summoner structs.ProcessedSummoner
+}
+
 type Metric struct {
 	Name         string
 	UserScore    float64
 	LeagueMedian float64
 	Rating       int
+	RatingString string
+
+	Tier     string
+	Division int
 }
 
 var MONGO_CONNECTION_URL = flag.String("mongodb", "localhost", "The URL that mgo should use to connect to Mongo.")
 var SUMMONER_FILE = flag.String("summoners", "input/pentakool", "Path to a file containing summoner ID's to evaluate.")
+
+func GetRating(rating int) string {
+	switch rating {
+	case RATING_TOP:
+		return "top of the league"
+		break
+	case RATING_ABOVE_AVERAGE:
+		return "above average"
+		break
+	case RATING_BELOW_AVERAGE:
+		return "below average"
+		break
+	case RATING_BOTTOM:
+		return "bottom of the bucket"
+		break
+	}
+
+	return "average"
+}
 
 /**
  * Fetch all recent games for the summoner provided. Note that games are pulled from processed logs
@@ -50,7 +78,6 @@ func GetGamesForSummoner(summoner_id int, earliest_date string) ([]structs.Proce
 
 	// TODO: add "where game is recent" filter
 	collection.Find(bson.M{"stats.summonerid": summoner_id}).All(&games)
-
 	// TODO: drop stats for all players except for the requested player.
 	return games, nil
 }
@@ -91,6 +118,44 @@ func GetProcessedSummoner(summoner_id int) (structs.ProcessedSummoner, error) {
 	return summoner, nil
 }
 
+func GetMetricsForDateRange(summoner structs.ProcessedSummoner, start_date time.Time, end_date time.Time) []Metric {
+	// Retrieve the appropriate games.
+	summoner_games, _ := GetGamesForSummoner(summoner.SummonerId, start_date.Format("2006-01-02"))
+	league_games, _ := GetGamesForLeague(summoner.CurrentTier, summoner.CurrentDivision, start_date.Format("2006-01-02"))
+
+	metrics := make([]Metric, 0)
+
+	////
+	// Compute stats
+	////
+
+	// Stats for CS
+	cs := buildMetric(summoner_games, league_games, "Creep score", func(game structs.ProcessedGame) float64 {
+		return float64(game.Stats[0].MinionsKilled)
+	}, max)
+	metrics = append(metrics, cs)
+
+	// Stats for # of deaths
+	deaths := buildMetric(summoner_games, league_games, "Deaths", func(game structs.ProcessedGame) float64 {
+		return float64(game.Stats[0].NumDeaths)
+	}, min)
+	metrics = append(metrics, deaths)
+
+	// Stats for # of wards placed
+	wardsPlaced := buildMetric(summoner_games, league_games, "Wards placed", func(game structs.ProcessedGame) float64 {
+		return float64(game.Stats[0].WardsPlaced)
+	}, max)
+	metrics = append(metrics, wardsPlaced)
+
+	// Stats for # of wards cleared
+	wardsCleared := buildMetric(summoner_games, league_games, "Wards cleared", func(game structs.ProcessedGame) float64 {
+		return float64(game.Stats[0].WardsCleared)
+	}, max)
+	metrics = append(metrics, wardsCleared)
+
+	return metrics
+}
+
 func main() {
 	flag.Parse()
 	// TODO: read summoner ID's in from somewhere.
@@ -99,7 +164,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	metrics := make(map[int][]Metric)
+	output := make(map[int]OutputRecord)
 
 	// For each summoner, compute a bunch of stats.
 	for _, summoner_id := range summoner_ids {
@@ -108,55 +173,26 @@ func main() {
 			log.Fatal(err.Error())
 		}
 
-		// Instantiate the list of metrics for this summoner.
-		metrics[summoner_id] = make([]Metric, 0)
+		// Add the summoner and instantiate the list of metrics for this summoner.
+		or := OutputRecord{
+			Summoner: summoner,
+			Metrics:  make([]Metric, 0),
+		}
 
 		// Get a time representing "DAY_RANGE days ago"
-		start := time.Unix(time.Now().Unix()-int64(DAY_RANGE*86400), 0)
-		// Retrieve the appropriate games.
-		summoner_games, _ := GetGamesForSummoner(summoner_id, start.Format("2006-01-02"))
-		league_games, _ := GetGamesForLeague(summoner.CurrentTier, summoner.CurrentDivision, start.Format("2006-01-02"))
-
-		////
-		// Compute stats
-		////
-
-		// Stats for CS
-		cs := buildMetric(summoner_games, league_games, "Creep score", func(game structs.ProcessedGame) float64 {
-			return float64(game.Stats[0].MinionsKilled)
-		})
-		metrics[summoner_id] = append(metrics[summoner_id], cs)
-
-		// Stats for # of deaths
-		deaths := buildMetric(summoner_games, league_games, "Deaths", func(game structs.ProcessedGame) float64 {
-			return float64(game.Stats[0].NumDeaths)
-		})
-		metrics[summoner_id] = append(metrics[summoner_id], deaths)
-
-		// Stats for # of wards placed
-		wardsPlaced := buildMetric(summoner_games, league_games, "Wards placed", func(game structs.ProcessedGame) float64 {
-			return float64(game.Stats[0].WardsPlaced)
-		})
-		metrics[summoner_id] = append(metrics[summoner_id], wardsPlaced)
-
-		// Stats for # of wards cleared
-		wardsCleared := buildMetric(summoner_games, league_games, "Wards cleared", func(game structs.ProcessedGame) float64 {
-			return float64(game.Stats[0].WardsCleared)
-		})
-		metrics[summoner_id] = append(metrics[summoner_id], wardsCleared)
-
-		// Print a report for each summoner.
-		fmt.Println(summoner.SummonerId)
-		for _, metric := range metrics[summoner_id] {
-			fmt.Println(fmt.Sprintf("  - %s: %.2f vs %.2f (%d)", metric.Name, metric.UserScore, metric.LeagueMedian, metric.Rating))
-		}
+		three_days_ago := time.Unix(time.Now().Unix()-int64(3*86400), 0)
+		// Get metrics for the last three days.
+		or.Metrics = GetMetricsForDateRange(summoner, three_days_ago, time.Now())
+		output[summoner_id] = or
 	}
+
+	WriteMetrics(output, "pentakool.html")
 }
 
 /**
  * Generate a Metric object from the provided games.
  */
-func buildMetric(playerGames []structs.ProcessedGame, leagueGames []structs.ProcessedGame, name string, sampleFunc func(game structs.ProcessedGame) float64) Metric {
+func buildMetric(playerGames []structs.ProcessedGame, leagueGames []structs.ProcessedGame, name string, sampleFunc func(game structs.ProcessedGame) float64, ratingFunc func(float64, float64, float64) int) Metric {
 	metric := Metric{
 		Name: name,
 	}
@@ -171,25 +207,10 @@ func buildMetric(playerGames []structs.ProcessedGame, leagueGames []structs.Proc
 	for _, game := range leagueGames {
 		sample = append(sample, sampleFunc(game))
 	}
+
 	metric.LeagueMedian = stats.Median(sample)
-
-	//	variance := stats.Variance(sample, len(league_games))
-	stddev := stats.StdDevS(sample)
-
-	switch {
-	case metric.UserScore < (metric.LeagueMedian - stddev):
-		metric.Rating = RATING_BOTTOM
-		break
-	case metric.UserScore < metric.LeagueMedian:
-		metric.Rating = RATING_BELOW_AVERAGE
-		break
-	case metric.UserScore > (metric.LeagueMedian + stddev):
-		metric.Rating = RATING_TOP
-		break
-	case metric.UserScore > metric.LeagueMedian:
-		metric.Rating = RATING_ABOVE_AVERAGE
-		break
-	}
+	metric.Rating = ratingFunc(metric.UserScore, metric.LeagueMedian, stats.StdDevS(sample))
+	metric.RatingString = GetRating(metric.Rating)
 
 	return metric
 }
