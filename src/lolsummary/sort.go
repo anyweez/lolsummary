@@ -2,6 +2,8 @@ package main
 
 func max(score float64, median float64, stddev float64) int {
 	switch {
+	case score == median:
+		return RATING_AVERAGE
 	case score < (median - stddev):
 		return RATING_BOTTOM
 	case score < median:
@@ -17,6 +19,8 @@ func max(score float64, median float64, stddev float64) int {
 
 func min(score float64, median float64, stddev float64) int {
 	switch {
+	case score == median:
+		return RATING_AVERAGE
 	case score < (median - stddev):
 		return RATING_TOP
 	case score < median:

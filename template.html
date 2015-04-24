@@ -1,0 +1,104 @@
+<html>
+	<head>
+		<title>Pentakool: team stats</title>
+		<link rel="stylesheet" href="style.css" />
+		<link rel="stylesheet" href="https://cdn.datatables.net/1.10.6/css/jquery.dataTables.min.css" />
+
+		<script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+		<script src="https://cdn.datatables.net/1.10.6/js/jquery.dataTables.min.js"></script>
+
+		<script type="text/javascript">
+			$(document).ready(function() {
+				$('#team').DataTable({
+					"paging": false,
+					"info": false,
+					"searching": false,
+				});
+			})
+		</script>
+
+		<style type="text/css">
+			td p {
+				margin: 4px;
+			}
+
+			td .player-rating-img {
+				margin: 4px;
+			}
+
+			td .player-stats {
+				margin-top: 7px;
+			}
+
+			svg:hover path {
+				fill: green;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h2>Pentakool</h2>
+		<table id="team" class="row-border hover order-column stripe">
+			<thead>
+				<tr>
+					<th>Summoner</th>
+					<th>Metric</th>
+					<th>Last three days</th>
+					<th>Last seven days</th>
+					<th>Last thirty days</th>
+					<th>This season</th>
+				</tr>
+			</thead>
+			<tbody>
+			{{ range $key, $record := . }}
+				{{ range $record.Metrics }}
+				<tr>
+					<!-- Summoner information -->
+					<td>
+						<p>{{ $record.Summoner.SummonerId }}</p>
+						<p style="font-style: italic">{{ $record.Summoner.CurrentTier }} {{ $record.Summoner.CurrentDivision }}</p></td>
+					<td>{{ .Name }}</td>
+					{{ range .Values }}
+						<td>
+							<div class="player-rating-img" style="float: left; margin: 10px;">
+								<img src="static/img/rating-{{ .Rating }}.svg" />
+							</div>
+							<div class="player-stats" style="float: left; width:50%">
+								<p>{{ .UserScore }}</p>
+								<p>vs. {{ .LeagueMedian }} tier median</p>
+							</div>
+						</td>
+					{{ end }}
+				{{ end }}
+				</tr>
+			{{ end }}
+			</tbody>
+		</table>
+
+		<div style="float: right; font-style: italic; margin: 10px;">last updated XX</div>
+<!--
+		{{ range $key, $record := . }}
+			<h3>{{ $record.Summoner.SummonerId }} ({{ $record.Summoner.CurrentTier }} {{ $record.Summoner.CurrentDivision }})</h3>
+			<div class="header">
+				<p class="metric-name metric">&nbsp</p>
+				<p class="metric-label metric">Last three days</p>
+				<p class="metric-label metric">Last seven days</p>
+				<p class="metric-label metric">Last thirty days</p>
+				<p class="metric-label metric">This season</p>
+			</div>
+			{{ range $record.Metrics }}
+				<div class="header">
+					<p class="metric-name metric">{{ .Name }}</p>
+					{{ range .Values }}
+						<p class="metric-score metric rating-{{ .Rating }}">
+							{{ .UserScore }} vs {{ .LeagueMedian }} league average<br />
+							({{ .RatingString }})<br />
+							<i>among {{ .NumGames }} games</i>
+						</p>
+					{{ end }}
+				</div>
+			{{ end }}
+		{{ end }}
+-->
+	</body>
+</html>
