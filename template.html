@@ -55,7 +55,7 @@
 				<tr>
 					<!-- Summoner information -->
 					<td>
-						<p>{{ $record.Summoner.SummonerId }}</p>
+						<p>{{ $record.Summoner.Name }}</p>
 						<p style="font-style: italic">{{ $record.Summoner.CurrentTier }} {{ $record.Summoner.CurrentDivision }}</p></td>
 					<td>{{ .Name }}</td>
 					{{ range .Values }}
@@ -82,29 +82,5 @@
 		</table>
 
 		<div style="float: right; font-style: italic; margin: 10px;">last updated XX</div>
-<!--
-		{{ range $key, $record := . }}
-			<h3>{{ $record.Summoner.SummonerId }} ({{ $record.Summoner.CurrentTier }} {{ $record.Summoner.CurrentDivision }})</h3>
-			<div class="header">
-				<p class="metric-name metric">&nbsp</p>
-				<p class="metric-label metric">Last three days</p>
-				<p class="metric-label metric">Last seven days</p>
-				<p class="metric-label metric">Last thirty days</p>
-				<p class="metric-label metric">This season</p>
-			</div>
-			{{ range $record.Metrics }}
-				<div class="header">
-					<p class="metric-name metric">{{ .Name }}</p>
-					{{ range .Values }}
-						<p class="metric-score metric rating-{{ .Rating }}">
-							{{ .UserScore }} vs {{ .LeagueMedian }} league average<br />
-							({{ .RatingString }})<br />
-							<i>among {{ .NumGames }} games</i>
-						</p>
-					{{ end }}
-				</div>
-			{{ end }}
-		{{ end }}
--->
 	</body>
 </html>
