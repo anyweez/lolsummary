@@ -59,7 +59,13 @@
 						<p style="font-style: italic">{{ $record.Summoner.CurrentTier }} {{ $record.Summoner.CurrentDivision }}</p></td>
 					<td>{{ .Name }}</td>
 					{{ range .Values }}
-						<td>
+						{{ if lt .Rating 2 }}
+						<td style="background-color: #88CC88">
+						{{ else }}{{ if gt .Rating 2 }}
+						<td style="background-color: #ffa8a8">
+						{{ else }} 
+						<td style="background-color: #e3e3e3">
+						{{ end }}{{ end }}
 							<div class="player-rating-img" style="float: left; margin: 10px;">
 								<img src="static/img/rating-{{ .Rating }}.svg" />
 							</div>
