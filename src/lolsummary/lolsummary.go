@@ -138,44 +138,6 @@ func GetProcessedSummoner(summoner_id int) (structs.ProcessedSummoner, error) {
 	return summoner, nil
 }
 
-// func GetMetricsForDateRange(summoner structs.ProcessedSummoner, start_date time.Time, end_date time.Time) []Metric {
-// 	// Retrieve the appropriate games.
-// 	summoner_games, _ := GetGamesForSummoner(summoner.SummonerId, start_date.Format("2006-01-02"), end_date.Format("2006-01-02"))
-// 	league_games, _ := GetGamesForLeague(summoner.CurrentTier, summoner.CurrentDivision, start_date.Format("2006-01-02"), end_date.Format("2006-01-02"))
-
-// 	metrics := make([]Metric, 0)
-
-// 	////
-// 	// Compute stats
-// 	////
-
-// 	// Stats for CS
-// 	cs := buildMetric(summoner_games, league_games, "Creep score", func(game structs.ProcessedGame) float64 {
-// 		return float64(game.Stats[0].MinionsKilled)
-// 	}, max)
-// 	metrics = append(metrics, cs)
-
-// 	// Stats for # of deaths
-// 	deaths := buildMetric(summoner_games, league_games, "Deaths", func(game structs.ProcessedGame) float64 {
-// 		return float64(game.Stats[0].NumDeaths)
-// 	}, min)
-// 	metrics = append(metrics, deaths)
-
-// 	// Stats for # of wards placed
-// 	wardsPlaced := buildMetric(summoner_games, league_games, "Wards placed", func(game structs.ProcessedGame) float64 {
-// 		return float64(game.Stats[0].WardsPlaced)
-// 	}, max)
-// 	metrics = append(metrics, wardsPlaced)
-
-// 	// Stats for # of wards cleared
-// 	wardsCleared := buildMetric(summoner_games, league_games, "Wards cleared", func(game structs.ProcessedGame) float64 {
-// 		return float64(game.Stats[0].WardsCleared)
-// 	}, max)
-// 	metrics = append(metrics, wardsCleared)
-
-// 	return metrics
-// }
-
 func GetMetricsForDateRanges(summoner structs.ProcessedSummoner, start_dates []time.Time, end_date time.Time) []Metric {
 	metrics := make([]Metric, 0)
 
@@ -249,6 +211,11 @@ func main() {
 		summoner, err := GetProcessedSummoner(summoner_id)
 		if err != nil {
 			log.Fatal(err.Error())
+		}
+
+		// Set the name to *something* even if the correct value isn't known.
+		if len(summoner.Name) == 0 {
+			summoner.Name = fmt.Sprintf("Summoner #%d", summoner.SummonerId)
 		}
 
 		// TODO: this should probably be a constant somewhere.
